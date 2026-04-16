@@ -1,5 +1,28 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 
+const storage = {
+  async get(key: string, shared: boolean): Promise<{ value: string } | null> {
+    if (!shared) {
+      const v = localStorage.getItem(key);
+      return v ? { value: v } : null;
+    }
+    const res = await fetch(`/api/kv/${encodeURIComponent(key)}`);
+    if (!res.ok) return null;
+    return res.json();
+  },
+  async set(key: string, value: string, shared: boolean): Promise<void> {
+    if (!shared) {
+      localStorage.setItem(key, value);
+      return;
+    }
+    await fetch(`/api/kv/${encodeURIComponent(key)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ value }),
+    });
+  },
+};
+
 const COLS = 200, ROWS = 250, MINES = 9999;
 const S_BOARD = "ms:board-200x250v2", S_SCORES = "ms:scores2", S_ME = "ms:myplayer", S_HISTORY = "ms:history2";
 const LONG_PRESS_MS = 200, MOVE_THRESHOLD = 6, BUFFER = 3;
@@ -139,19 +162,19 @@ export default function MultiMinesweeper() {
   }, [clampView]);
 
   const saveBoard = useCallback(async (b, gid) => {
-    try { await window.storage.set(S_BOARD, JSON.stringify({ gameId: gid, cells: b }), true); } catch {}
+    try { await storage.set(S_BOARD, JSON.stringify({ gameId: gid, cells: b }), true); } catch {}
   }, []);
-  const saveScores = useCallback(async sc => { try { await window.storage.set(S_SCORES, JSON.stringify(sc), true); } catch {} }, []);
-  const saveMe     = useCallback(async m  => { try { await window.storage.set(S_ME, JSON.stringify(m), false); } catch {} }, []);
+  const saveScores = useCallback(async sc => { try { await storage.set(S_SCORES, JSON.stringify(sc), true); } catch {} }, []);
+  const saveMe     = useCallback(async m  => { try { await storage.set(S_ME, JSON.stringify(m), false); } catch {} }, []);
 
   useEffect(() => {
     async function load() {
       try {
         const [bR, sR, mR, hR] = await Promise.all([
-          window.storage.get(S_BOARD,   true).catch(() => null),
-          window.storage.get(S_SCORES,  true).catch(() => null),
-          window.storage.get(S_ME,     false).catch(() => null),
-          window.storage.get(S_HISTORY, true).catch(() => null),
+          storage.get(S_BOARD,   true).catch(() => null),
+          storage.get(S_SCORES,  true).catch(() => null),
+          storage.get(S_ME,     false).catch(() => null),
+          storage.get(S_HISTORY, true).catch(() => null),
         ]);
         const { cells: pb, gameId: gid } = loadBoardData(bR ? JSON.parse(bR.value) : null);
         const validBoard = pb && pb.length === ROWS * COLS;
@@ -182,8 +205,8 @@ export default function MultiMinesweeper() {
     const interval = setInterval(async () => {
       try {
         const [bR, sR] = await Promise.all([
-          window.storage.get(S_BOARD,  true).catch(() => null),
-          window.storage.get(S_SCORES, true).catch(() => null),
+          storage.get(S_BOARD,  true).catch(() => null),
+          storage.get(S_SCORES, true).catch(() => null),
         ]);
         if (bR) {
           const { cells: remote, gameId: remoteGid } = loadBoardData(JSON.parse(bR.value));
@@ -220,7 +243,7 @@ export default function MultiMinesweeper() {
     const m = meRef.current; if (!m) return;
     let base = scoresRef.current;
     try {
-      const sR = await window.storage.get(S_SCORES, true).catch(() => null);
+      const sR = await storage.get(S_SCORES, true).catch(() => null);
       if (sR) base = { ...JSON.parse(sR.value), ...scoresRef.current };
     } catch {}
     const cur = base[m.id] ?? { name: m.name, color: m.color, score: 0, opened: 0, explosions: 0 };
@@ -268,7 +291,7 @@ export default function MultiMinesweeper() {
       }
       // マージ・保存は非同期で後から
       try {
-        const latest = await window.storage.get(S_BOARD, true).catch(() => null);
+        const latest = await storage.get(S_BOARD, true).catch(() => null);
         const base = boardRef.current;
         if (latest) {
           const { cells: remote, gameId: remoteGid } = loadBoardData(JSON.parse(latest.value));
@@ -449,7 +472,7 @@ export default function MultiMinesweeper() {
     };
     const newHistory = [entry, ...history].slice(0, 10);
     setHistory(newHistory);
-    try { await window.storage.set(S_HISTORY, JSON.stringify(newHistory), true); } catch {}
+    try { await storage.set(S_HISTORY, JSON.stringify(newHistory), true); } catch {}
     const resetScores = Object.fromEntries(
       Object.entries(sc).map(([id, s]) => [id, { ...s, score: 0, opened: 0, explosions: 0 }])
     );
