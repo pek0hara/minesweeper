@@ -296,24 +296,3 @@ export class MinesweeperGame {
   async webSocketClose(_ws: WebSocket, _code: number, _reason: string, _clean: boolean) {}
   async webSocketError(_ws: WebSocket, _error: unknown) {}
 }
-
-// ── Pages Function ─────────────────────────────────────────────────────────
-
-interface Env {
-  GAME: DurableObjectNamespace;
-}
-
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
-
-export const onRequestOptions: PagesFunction = async () =>
-  new Response(null, { status: 204, headers: CORS });
-
-export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
-  const id = env.GAME.idFromName('global');
-  const stub = env.GAME.get(id);
-  return stub.fetch(request);
-};
