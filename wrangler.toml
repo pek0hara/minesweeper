@@ -12,4 +12,4 @@ class_name = "MinesweeperGame"
 
 [[migrations]]
 tag = "v1"
-new_classes = ["MinesweeperGame"]
+new_sqlite_classes = ["MinesweeperGame"]
