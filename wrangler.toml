@@ -1,0 +1,11 @@
+name = "minesweeper"
+pages_build_output_dir = "dist"
+compatibility_date = "2025-01-01"
+
+[[durable_objects.bindings]]
+name = "GAME"
+class_name = "MinesweeperGame"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["MinesweeperGame"]
